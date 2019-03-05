@@ -1,3 +1,23 @@
+
+########################################
+########### SHOP CUSTOMIZED ############
+########################################
+
+# Local OS metadata
+.DS_Store
+Thumbs.db
+
+# Vagrant
+.vagrant
+
+# databses
+db/*
+!db/.keep
+
+########################################
+####### END SHOP CUSTOMIZED ############
+########################################
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
