@@ -9,7 +9,7 @@ from werkzeug.exceptions import NotFound
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_
 
-DEBUG = (os.getenv('DEBUG', 'False') == 'True')
+DEBUG = (os.getenv('DEBUG', 'True') == 'True')
 PORT = os.getenv('PORT', '5000')
 DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///db/development.db')
 
