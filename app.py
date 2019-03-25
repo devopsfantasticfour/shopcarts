@@ -1,3 +1,16 @@
+# Copyright 2016, 2019 John J. Rofrano. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import sys
@@ -70,9 +83,11 @@ def internal_error(error):
 class ShoppingCart(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     userId = db.Column(db.Integer())
+    state = db.Column(db.String(20))
 
-    def __init__(self, userId = 0):
+    def __init__(self, userId = 0, state = "empty"):
         self.userId = userId
+        self.state = state
 
     def save(self):
         """ Saves an existing shopping cart in the database """
@@ -87,11 +102,12 @@ class ShoppingCart(db.Model):
         db.session.commit()
 
     def serialize(self):
-        return { "id": self.id, "userId": self.userId }
+        return { "id": self.id, "userId": self.userId, "state": self.state }
 
     def deserialize(self, data):
         try:
             self.userId = data['userId']
+            self.state = data['state']
         except KeyError as e:
             raise DataValidationError('Invalid cart: missing ' + e.args[0])
         except TypeError as e:
@@ -108,6 +124,15 @@ class ShoppingCart(db.Model):
         """ Finds a cart by it's ID """
         return cls.query.get(cart_id)
 
+    @classmethod
+    def find_by_user(cls, user_id):
+        """ Finds a cart by user's ID """
+        return cls.query.filter(cls.userId == user_id).all()
+
+    @classmethod
+    def find_by_state(cls, state):
+        """ Finds a cart by its fill status """
+        return cls.query.filter(cls.state == state).all()
 
 class ShoppingCartItems(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -182,10 +207,27 @@ def index():
 ######################################################################
 @app.route('/carts', methods=['GET'])
 def list_carts():
-    results = []
-    app.logger.info('Getting all Carts')
-    results = ShoppingCart.all()
-    return jsonify([cart.serialize() for cart in results]), status.HTTP_200_OK
+    if request.args.get('userId'):
+        user_id = request.args.get('userId')
+        app.logger.info('Getting Cart for user with id: {}'.format(user_id))
+        results = ShoppingCart.find_by_user(user_id)
+        if not results:
+            raise NotFound('Cart with user id: {} was not found'.format(user_id))
+
+        return jsonify([cart.serialize() for cart in results]), status.HTTP_200_OK
+    elif request.args.get('state'):
+        state = request.args.get('state')
+        app.logger.info('Getting Carts with state: {}'.format(state))
+        results = ShoppingCart.find_by_state(state)
+        if not results:
+            raise NotFound('Carts with state: {} was not found'.format(state))
+
+        return jsonify([cart.serialize() for cart in results]), status.HTTP_200_OK
+    else:
+        results = []
+        app.logger.info('Getting all Carts')
+        results = ShoppingCart.all()
+        return jsonify([cart.serialize() for cart in results]), status.HTTP_200_OK
 
 
 ######################################################################
@@ -214,6 +256,26 @@ def create_carts():
     return make_response(jsonify(cart.serialize()),
                          status.HTTP_201_CREATED,
                          {'Location': url_for('get_carts', cart_id=cart.id, _external=True)})
+
+
+######################################################################
+# UPDATE AN EXISTING CART
+######################################################################
+@app.route('/carts/<int:cart_id>', methods=['PUT'])
+def update_carts(cart_id):
+    app.logger.info('Updating cart with id: {}'.format(cart_id))
+    cart = ShoppingCart.find(cart_id)
+    if not cart:
+        raise NotFound('Cart with id: {} was not found'.format(cart_id))
+
+    # process the update request
+    cart.deserialize(request.get_json())
+    cart.id = cart_id # make id matches request
+    cart.save()
+    app.logger.info('Cart with id {} has been updated'.format(cart_id))
+    return jsonify(cart.serialize()), status.HTTP_200_OK
+
+
 
 ######################################################################
 # LIST ALL ITEMS of all CART
@@ -305,6 +367,23 @@ def delete_carts(cart_id):
 @app.before_first_request
 def initialize():
     db.create_all()  # make our sqlalchemy tables
+    if not app.debug:
+        print('Setting up logging...')
+        # Set up default logging for submodules to use STDOUT
+        # datefmt='%m/%d/%Y %I:%M:%S %p'
+        fmt = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+        #logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
+        # Make a new log handler that uses STDOUT
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter(fmt))
+        handler.setLevel(app.config['LOGGING_LEVEL'])
+        # Remove the Flask default handlers and use our own
+        handler_list = list(app.logger.handlers)
+        for log_handler in handler_list:
+            app.logger.removeHandler(log_handler)
+        app.logger.addHandler(handler)
+        app.logger.setLevel(app.config['LOGGING_LEVEL'])
+        app.logger.info('Logging handler established')
 
 
 
