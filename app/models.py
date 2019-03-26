@@ -198,7 +198,6 @@ class ShoppingCartItems(db.Model):
             self.price = data['price']
             self.quantity = data['quantity']
             self.cartId = data['cartId']
-            self.id = data['id']
         except KeyError as e:
             raise DataValidationError('Invalid item: missing ' + e.args[0])
         except TypeError as e:
@@ -227,7 +226,7 @@ class ShoppingCartItems(db.Model):
         return cls.query.filter(cls.cartId == cart_ID).all()
 
     @classmethod
-    def find(cls, item_ID):
+    def find(cls, cart_ID, item_ID):
         """ Finds an item in a particular cart  """
-        return cls.query.filter(cls.id == item_ID).all()
+        return cls.query.filter(cls.cartId == cart_ID, cls.id == item_ID).all()
 

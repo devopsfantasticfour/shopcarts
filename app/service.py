@@ -229,7 +229,7 @@ def get_item(cart_id, item_id):
     cart = ShoppingCart.find(cart_id)
     if not cart:
         raise NotFound('Cart with id: {} was not found'.format(cart_id))
-    results = ShoppingCartItems.find(item_id)
+    results = ShoppingCartItems.find(cart_id, item_id)
     if not results:
         raise NotFound('Cart with id: {} does not have any item with id: {}'.format(cart_id, item_id))
     return jsonify([item.serialize() for item in results]), status.HTTP_200_OK
@@ -251,7 +251,7 @@ def create_items(cart_id):
     app.logger.info('Created Item with id: {}'.format(item.id))
     return make_response(jsonify(item.serialize()),
                          status.HTTP_201_CREATED,
-                         {'Location': url_for('get_item', cart_id=cart_id, product_id=item.id, _external=True)})
+                         {'Location': url_for('get_item', cart_id=cart_id, item_id=item.id, _external=True)})
 
 
 
@@ -293,7 +293,7 @@ def initialize_logging(log_level=logging.INFO):
         # Set up default logging for submodules to use STDOUT
         # datefmt='%m/%d/%Y %I:%M:%S %p'
         fmt = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-        logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
+        #logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
         # Make a new log handler that uses STDOUT
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter(fmt))
