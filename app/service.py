@@ -1,4 +1,6 @@
-# Copyright 2016, 2019 John J. Rofrano. All Rights Reserved.
+#!/usr/bin/python -B
+
+# Copyright 2016, 2017 John J. Rofrano. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Shopcart Service
+
+Paths:
+------
+GET /carts - Returns a list all of the Carts
+GET /carts/{id} - Returns the Shopcart with a given id number
+POST /carts - creates a new shopcart record in the database
+PUT /carts/{id} - updates a Shopcart record in the database
+DELETE /carts/{id} - deletes a Shopcart record in the database
+"""
+
 import os
 import sys
 import logging
@@ -19,178 +33,66 @@ from flask import Flask, Response, jsonify, request, json, url_for, make_respons
 from flask_api import status    # HTTP Status Codes
 from werkzeug.exceptions import NotFound
 
+# For this example we'll use SQLAlchemy, a popular ORM that supports a
+# variety of backends including SQLite, MySQL, and PostgreSQL
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import and_
+from models import DataValidationError, ShoppingCart, ShoppingCartItems
 
-DEBUG = (os.getenv('DEBUG', 'False') == 'True')
-PORT = os.getenv('PORT', '5000')
-DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///db/development.db')
-
-# Create Flask application
-app = Flask(__name__)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'secret'
-app.config['LOGGING_LEVEL'] = logging.INFO
-
-db = SQLAlchemy(app)
-
+# Import Flask application
+from . import app
 
 ######################################################################
-# Custom Exceptions
-######################################################################
-class DataValidationError(ValueError):
-    pass
-
-######################################################################
-# ERROR Handling
+# Error Handlers
 ######################################################################
 @app.errorhandler(DataValidationError)
 def request_validation_error(error):
-    message = str(error)
-    app.logger.info(message)
-    return jsonify(status=400, error='Bad Request', message=message), \
-                   status.HTTP_400_BAD_REQUEST
+    """ Handles Value Errors from bad data """
+    return bad_request(error)
 
-@app.errorhandler(404)
-def not_found(error):
-    message = str(error)
-    app.logger.info(message)
-    return jsonify(status=404, error='Not Found', message=message), \
-                   status.HTTP_404_NOT_FOUND
-
-@app.errorhandler(400)
+@app.errorhandler(status.HTTP_400_BAD_REQUEST)
 def bad_request(error):
-    message = str(error)
-    app.logger.info(message)
-    return jsonify(status=400, error='Bad Request', message=message), \
-                   status.HTTP_400_BAD_REQUEST
+    """ Handles bad reuests with 400_BAD_REQUEST """
+    message = error.message or str(error)
+    app.logger.warning(message)
+    return jsonify(status=status.HTTP_400_BAD_REQUEST,
+                   error='Bad Request',
+                   message=message), status.HTTP_400_BAD_REQUEST
 
-@app.errorhandler(405)
-def method_not_allowed(error):
-    return jsonify(status=405, error='Method not Allowed',
-                   message='Your request method is not supported. Check your HTTP method and try again.'), \
-                   status.HTTP_405_METHOD_NOT_ALLOWED
+@app.errorhandler(status.HTTP_404_NOT_FOUND)
+def not_found(error):
+    """ Handles resources not found with 404_NOT_FOUND """
+    message = error.message or str(error)
+    app.logger.warning(message)
+    return jsonify(status=status.HTTP_404_NOT_FOUND,
+                   error='Not Found',
+                   message=message), status.HTTP_404_NOT_FOUND
 
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify(status=500, error='Internal Server Error',
-                   message='Houston... we have a problem.'), \
-                   status.HTTP_500_INTERNAL_SERVER_ERROR
+@app.errorhandler(status.HTTP_405_METHOD_NOT_ALLOWED)
+def method_not_supported(error):
+    """ Handles unsuppoted HTTP methods with 405_METHOD_NOT_SUPPORTED """
+    message = error.message or str(error)
+    app.logger.warning(message)
+    return jsonify(status=status.HTTP_405_METHOD_NOT_ALLOWED,
+                   error='Method not Allowed',
+                   message=message), status.HTTP_405_METHOD_NOT_ALLOWED
 
-#Shopping cart model for DATABASE_URI
-class ShoppingCart(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    userId = db.Column(db.Integer())
-    state = db.Column(db.String(20))
+@app.errorhandler(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+def mediatype_not_supported(error):
+    """ Handles unsuppoted media requests with 415_UNSUPPORTED_MEDIA_TYPE """
+    message = error.message or str(error)
+    app.logger.warning(message)
+    return jsonify(status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                   error='Unsupported media type',
+                   message=message), status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
 
-    def __init__(self, userId = 0, state = "empty"):
-        self.userId = userId
-        self.state = state
-
-    def save(self):
-        """ Saves an existing shopping cart in the database """
-        # if the id is None it hasn't been added to the database
-        if not self.id:
-            db.session.add(self)
-        db.session.commit()
-
-    def delete(self):
-        """ Deletes a shopping cart from the database """
-        db.session.delete(self)
-        db.session.commit()
-
-    def serialize(self):
-        return { "id": self.id, "userId": self.userId, "state": self.state }
-
-    def deserialize(self, data):
-        try:
-            self.userId = data['userId']
-            self.state = data['state']
-        except KeyError as e:
-            raise DataValidationError('Invalid cart: missing ' + e.args[0])
-        except TypeError as e:
-            raise DataValidationError('Invalid cart: body of request contained bad or no data')
-        return self
-
-    @classmethod
-    def all(cls):
-        """ Returns all of the carts in the database """
-        return cls.query.all()
-
-    @classmethod
-    def find(cls, cart_id):
-        """ Finds a cart by it's ID """
-        return cls.query.get(cart_id)
-
-    @classmethod
-    def find_by_user(cls, user_id):
-        """ Finds a cart by user's ID """
-        return cls.query.filter(cls.userId == user_id).all()
-
-    @classmethod
-    def find_by_state(cls, state):
-        """ Finds a cart by its fill status """
-        return cls.query.filter(cls.state == state).all()
-
-class ShoppingCartItems(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    productID = db.Column(db.Integer)
-    price = db.Column(db.Float)
-    quantity = db.Column(db.Integer)
-    cartId = db.Column(db.Integer)
-
-    def __init__(self, productID = 0, price = 0.0, quantity = 0, cartId = 0):
-        self.productID = productID
-        self.price = price
-        self.quantity = quantity
-        self.cartId = cartId
-
-    def add(self):
-        """ Adds an item to shopping cart """
-        db.session.add(self)
-        db.session.commit()
-
-    def delete(self):
-        """Deletes an item from shopping cart """
-        db.session.delete(self)
-        db.session.commit()
-
-    def serialize(self):
-        return { "id": self.id,
-                "productID": self.productID,
-                "price": self.price,
-                "quantity": self.quantity,
-                "cartId": self.cartId
-                }
-
-    def deserialize(self, data):
-        try:
-            self.productID = data['productID']
-            self.price = data['price']
-            self.quantity = data['quantity']
-            self.cartId = data['cartId']
-        except KeyError as e:
-            raise DataValidationError('Invalid item: missing ' + e.args[0])
-        except TypeError as e:
-            raise DataValidationError('Invalid item: body of request contained bad or no data')
-        return self
-
-    @classmethod
-    def all(cls):
-        """ Returns all of the items in the cart database """
-        return cls.query.all()
-
-    @classmethod
-    def allItems(cls, cart_ID):
-        """ Returns all of the items for a particular cart ID """
-        return cls.query.filter(cls.cartId == cart_ID).all()
-
-    @classmethod
-    def find(cls, cart_ID, product_ID):
-        """ Finds an item in a particular cart  """
-        return cls.query.filter(cls.cartId == cart_ID, cls.productID == product_ID).all()
+@app.errorhandler(status.HTTP_500_INTERNAL_SERVER_ERROR)
+def internal_server_error(error):
+    """ Handles unexpected server error with 500_SERVER_ERROR """
+    message = error.message or str(error)
+    app.logger.error(message)
+    return jsonify(status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                   error='Internal Server Error',
+                   message=message), status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 ######################################################################
@@ -198,12 +100,14 @@ class ShoppingCartItems(db.Model):
 ######################################################################
 @app.route('/')
 def index():
+    """ Root URL response """
     return jsonify(name='Shopping cart REST API Service',
                    version='1.0',
-                   url=url_for('list_carts', _external=True)), status.HTTP_200_OK
+                   paths=url_for('list_carts', _external=True)
+                  ), status.HTTP_200_OK
 
 ######################################################################
-# LIST ALL Carts
+# LIST ALL CARTS
 ######################################################################
 @app.route('/carts', methods=['GET'])
 def list_carts():
@@ -249,6 +153,7 @@ def get_carts(cart_id):
 @app.route('/carts', methods=['POST'])
 def create_carts():
     app.logger.info('Create Cart requested')
+    check_content_type('application/json')
     cart = ShoppingCart(None)
     cart.deserialize(request.get_json())
     cart.save()
@@ -264,6 +169,7 @@ def create_carts():
 @app.route('/carts/<int:cart_id>', methods=['PUT'])
 def update_carts(cart_id):
     app.logger.info('Updating cart with id: {}'.format(cart_id))
+    check_content_type('application/json')
     cart = ShoppingCart.find(cart_id)
     if not cart:
         raise NotFound('Cart with id: {} was not found'.format(cart_id))
@@ -275,6 +181,17 @@ def update_carts(cart_id):
     app.logger.info('Cart with id {} has been updated'.format(cart_id))
     return jsonify(cart.serialize()), status.HTTP_200_OK
 
+
+######################################################################
+# DELETE A SHOPPING CART
+######################################################################
+@app.route('/carts/<int:cart_id>', methods=['DELETE'])
+def delete_carts(cart_id):
+    app.logger.info('Request to delete cart with id: {}'.format(cart_id))
+    cart = ShoppingCart.find(cart_id)
+    if cart:
+        cart.delete()
+    return make_response('', status.HTTP_204_NO_CONTENT)
 
 
 ######################################################################
@@ -306,15 +223,15 @@ def get_items(cart_id):
 ######################################################################
 # RETRIEVE one particular ITEM of A CART
 ######################################################################
-@app.route('/carts/<int:cart_id>/items/<int:product_id>', methods=['GET'])
-def get_item(cart_id, product_id):
-    app.logger.info('Getting particular item of id: {} in Cart with id: {}'.format(product_id, cart_id))
+@app.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['GET'])
+def get_item(cart_id, item_id):
+    app.logger.info('Getting particular item of id: {} in Cart with id: {}'.format(item_id, cart_id))
     cart = ShoppingCart.find(cart_id)
     if not cart:
         raise NotFound('Cart with id: {} was not found'.format(cart_id))
-    results = ShoppingCartItems.find(cart_id, product_id)
+    results = ShoppingCartItems.find(item_id)
     if not results:
-        raise NotFound('Cart with id: {} does not have any item with id: {}'.format(cart_id, product_id))
+        raise NotFound('Cart with id: {} does not have any item with id: {}'.format(cart_id, item_id))
     return jsonify([item.serialize() for item in results]), status.HTTP_200_OK
 
 
@@ -351,43 +268,40 @@ def delete_items(cart_id, product_id):
     return make_response('', status.HTTP_204_NO_CONTENT)
 
 
+
 ######################################################################
-# DELETE A SHOPPING CART
+#  U T I L I T Y   F U N C T I O N S
 ######################################################################
-@app.route('/carts/<int:cart_id>', methods=['DELETE'])
-def delete_carts(cart_id):
-    app.logger.info('Request to delete cart with id: {}'.format(cart_id))
-    cart = ShoppingCart.find(cart_id)
-    if cart:
-        cart.delete()
-    return make_response('', status.HTTP_204_NO_CONTENT)
 
+def init_db():
+    """ Initialies the SQLAlchemy app """
+    global app
+    ShoppingCart.init_db(app)
+    ShoppingCartItems.init_db(app)
 
+def check_content_type(content_type):
+    """ Checks that the media type is correct """
+    if request.headers['Content-Type'] == content_type:
+        return
+    app.logger.error('Invalid Content-Type: %s', request.headers['Content-Type'])
+    abort(415, 'Content-Type must be {}'.format(content_type))
 
-@app.before_first_request
-def initialize():
-    db.create_all()  # make our sqlalchemy tables
+def initialize_logging(log_level=logging.INFO):
+    """ Initialized the default logging to STDOUT """
     if not app.debug:
-        print('Setting up logging...')
+        print 'Setting up logging...'
         # Set up default logging for submodules to use STDOUT
         # datefmt='%m/%d/%Y %I:%M:%S %p'
         fmt = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-        #logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
+        logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
         # Make a new log handler that uses STDOUT
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter(fmt))
-        handler.setLevel(app.config['LOGGING_LEVEL'])
+        handler.setLevel(log_level)
         # Remove the Flask default handlers and use our own
         handler_list = list(app.logger.handlers)
         for log_handler in handler_list:
             app.logger.removeHandler(log_handler)
         app.logger.addHandler(handler)
-        app.logger.setLevel(app.config['LOGGING_LEVEL'])
+        app.logger.setLevel(log_level)
         app.logger.info('Logging handler established')
-
-
-
-# main
-if __name__ == "__main__":
-    print "Shopping cart Service Starting..."
-    app.run(host='0.0.0.0', port=int(PORT), debug=DEBUG)
