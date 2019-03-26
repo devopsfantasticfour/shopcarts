@@ -1,4 +1,3 @@
-#!/usr/bin/python -B
 
 # Copyright 2016, 2017 John Rofrano. All Rights Reserved.
 #
@@ -25,7 +24,6 @@ ShoppingCartItems - A shopcart item used in the shopcart
 
 Attributes:
 -----------
-AGGGGGGG - Modify these
 name (string) - the name of the pet
 category (string) - the category the pet belongs to (i.e., dog, cat)
 available (boolean) - True for pets that are available for adoption
@@ -35,13 +33,13 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 
 # Create the SQLAlchemy object to be initialized later in init_db()
-db = SQLAlchemy()
+DB = SQLAlchemy()
 
 class DataValidationError(Exception):
     """ Used for an data validation errors when deserializing """
     pass
 
-class ShoppingCart(db.Model):
+class ShoppingCart(DB.Model):
     """
     Class that represents a Shopping Cart
 
@@ -52,14 +50,14 @@ class ShoppingCart(db.Model):
     app = None
 
     # Table Schema
-    id = db.Column(db.Integer, primary_key=True)
-    userId = db.Column(db.Integer())
-    state = db.Column(db.String(20))
+    id = DB.Column(DB.Integer, primary_key=True)
+    userId = DB.Column(DB.Integer())
+    state = DB.Column(DB.String(20))
 
-    def __init__(self, userId = 0, state = "empty"):
+    def __init__(self, userId=0, state="empty"):
         self.userId = userId
         self.state = state
-        
+
     def __repr__(self):
         return '<ShoppingCart %r>' % (self.name)
 
@@ -68,19 +66,19 @@ class ShoppingCart(db.Model):
         Saves a ShoppingCart to the data store
         """
         if not self.id:
-            db.session.add(self)
-        db.session.commit()
+            DB.session.add(self)
+        DB.session.commit()
 
     def delete(self):
         """ Removes a shopping cart from the data store """
-        db.session.delete(self)
-        db.session.commit()
+        DB.session.delete(self)
+        DB.session.commit()
 
     def serialize(self):
         """ Serializes a Shopping Cart into a dictionary """
-        return { "id": self.id, 
-        		 "userId": self.userId, 
-        		 "state": self.state }
+        return {"id": self.id,
+                "userId": self.userId,
+                "state": self.state}
 
     def deserialize(self, data):
         """
@@ -92,9 +90,9 @@ class ShoppingCart(db.Model):
         try:
             self.userId = data['userId']
             self.state = data['state']
-        except KeyError as e:
-            raise DataValidationError('Invalid cart: missing ' + e.args[0])
-        except TypeError as e:
+        except KeyError as error:
+            raise DataValidationError('Invalid cart: missing ' + error.args[0])
+        except TypeError as error:
             raise DataValidationError('Invalid cart: body of request contained bad or no data')
         return self
 
@@ -104,22 +102,22 @@ class ShoppingCart(db.Model):
         cls.logger.info('Initializing database')
         cls.app = app
         # This is where we initialize SQLAlchemy from the Flask app
-        db.init_app(app)
+        DB.init_app(app)
         app.app_context().push()
-        db.create_all()  # make our sqlalchemy tables
+        DB.create_all()  # make our sqlalchemy tables
 
     @classmethod
     def all(cls):
         """ Returns all of the Carts in the database """
         cls.logger.info('Processing all Carts')
         return cls.query.all()
-        
+
     @classmethod
     def find(cls, cart_id):
         """ Finds a Cart by cart ID """
         cls.logger.info('Processing lookup for id %s ...', cart_id)
         return cls.query.get(cart_id)
-            	
+
     @classmethod
     def find_or_404(cls, cart_id):
         """ Find a Cart by its id """
@@ -135,11 +133,11 @@ class ShoppingCart(db.Model):
     def find_by_state(cls, state):
         """ Finds a cart by its state """
         return cls.query.filter(cls.state == state).all()
-        
+
 ###################################################
 # SHOPPING CART ITEMS MODEL
 ###################################################
-class ShoppingCartItems(db.Model):
+class ShoppingCartItems(DB.Model):
 
     """
     Class that represents a Shopcart item
@@ -151,14 +149,14 @@ class ShoppingCartItems(db.Model):
     app = None
 
     # Table Schema
-    id = db.Column(db.Integer, primary_key=True)
-    productID = db.Column(db.Integer)
-    price = db.Column(db.Float)
-    quantity = db.Column(db.Integer)
-    cartId = db.Column(db.Integer)
+    id = DB.Column(DB.Integer, primary_key=True)
+    productID = DB.Column(DB.Integer)
+    price = DB.Column(DB.Float)
+    quantity = DB.Column(DB.Integer)
+    cartId = DB.Column(DB.Integer)
 
 
-    def __init__(self, productID = 0, price = 0.0, quantity = 0, cartId = 0):
+    def __init__(self, productID=0, price=0.0, quantity=0, cartId=0):
         self.productID = productID
         self.price = price
         self.quantity = quantity
@@ -166,25 +164,24 @@ class ShoppingCartItems(db.Model):
 
     def __repr__(self):
         return '<CartItem %r>' % (self.name)
-        
+
     def add(self):
         """ Adds an item to shopping cart """
-        db.session.add(self)
-        db.session.commit()
+        DB.session.add(self)
+        DB.session.commit()
 
     def delete(self):
         """Deletes an item from shopping cart """
-        db.session.delete(self)
-        db.session.commit()
+        DB.session.delete(self)
+        DB.session.commit()
 
     def serialize(self):
         """ Serializes an item into a dictionary """
-        return { "id": self.id,
+        return {"id": self.id,
                 "productID": self.productID,
                 "price": self.price,
                 "quantity": self.quantity,
-                "cartId": self.cartId
-                }
+                "cartId": self.cartId}
 
     def deserialize(self, data):
         """
@@ -198,21 +195,21 @@ class ShoppingCartItems(db.Model):
             self.price = data['price']
             self.quantity = data['quantity']
             self.cartId = data['cartId']
-        except KeyError as e:
-            raise DataValidationError('Invalid item: missing ' + e.args[0])
-        except TypeError as e:
+        except KeyError as error:
+            raise DataValidationError('Invalid item: missing ' + error.args[0])
+        except TypeError as error:
             raise DataValidationError('Invalid item: body of request contained bad or no data')
         return self
-    
+
     @classmethod
     def init_db(cls, app):
         """ Initializes the database session """
         cls.logger.info('Initializing database')
         cls.app = app
         # This is where we initialize SQLAlchemy from the Flask app
-        db.init_app(app)
+        DB.init_app(app)
         app.app_context().push()
-        db.create_all()  # make our sqlalchemy tables
+        DB.create_all()  # make our sqlalchemy tables
 
     @classmethod
     def all(cls):
@@ -229,4 +226,3 @@ class ShoppingCartItems(db.Model):
     def find(cls, cart_ID, item_ID):
         """ Finds an item in a particular cart  """
         return cls.query.filter(cls.cartId == cart_ID, cls.id == item_ID).all()
-
