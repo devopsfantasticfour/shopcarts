@@ -271,6 +271,30 @@ def create_items(cart_id):
                          status.HTTP_201_CREATED,
                          {'Location': url_for('get_item', cart_id=cart_id, item_id=item.id, _external=True)})
 
+######################################################################
+# UPDATE AN EXISTING CART ITEM
+######################################################################
+@app.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
+def update_cartitems(cart_id, item_id):
+    """ Update a cart with the given cart ID and item ID """
+    app.logger.info('Updating cart with id: {} and item {}'.format(cart_id, item_id))
+    check_content_type('application/json')
+    cart = ShoppingCart.find(cart_id)
+    if not cart:
+        raise NotFound('Cart with id: {} was not found'.format(cart_id))
+
+    results = ShoppingCartItems.find(cart_id, item_id)
+    if not results:
+        raise NotFound('CartID: {} does not have item ID {}'.format(cart_id, item_id))
+    
+    # process the update request
+    for item in results:
+        item.deserialize(request.get_json())
+        item.id = item_id
+        item.add()
+        app.logger.info('CartID {} and item ID {} has been updated'.format(cart_id, item_id))
+    return jsonify([item.serialize() for item in results]), status.HTTP_200_OK
+
 
 
 ######################################################################
