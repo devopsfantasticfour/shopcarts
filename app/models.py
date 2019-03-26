@@ -33,13 +33,13 @@ import logging
 from flask_sqlalchemy import SQLAlchemy
 
 # Create the SQLAlchemy object to be initialized later in init_db()
-DB = SQLAlchemy()
+db = SQLAlchemy()
 
 class DataValidationError(Exception):
     """ Used for an data validation errors when deserializing """
     pass
 
-class ShoppingCart(DB.Model):
+class ShoppingCart(db.Model):
     """
     Class that represents a Shopping Cart
 
@@ -50,9 +50,9 @@ class ShoppingCart(DB.Model):
     app = None
 
     # Table Schema
-    id = DB.Column(DB.Integer, primary_key=True)
-    userId = DB.Column(DB.Integer())
-    state = DB.Column(DB.String(20))
+    id = db.Column(db.Integer, primary_key=True)
+    userId = db.Column(db.Integer())
+    state = db.Column(db.String(20))
 
     def __init__(self, userId=0, state="empty"):
         self.userId = userId
@@ -66,13 +66,13 @@ class ShoppingCart(DB.Model):
         Saves a ShoppingCart to the data store
         """
         if not self.id:
-            DB.session.add(self)
-        DB.session.commit()
+            db.session.add(self)
+        db.session.commit()
 
     def delete(self):
         """ Removes a shopping cart from the data store """
-        DB.session.delete(self)
-        DB.session.commit()
+        db.session.delete(self)
+        db.session.commit()
 
     def serialize(self):
         """ Serializes a Shopping Cart into a dictionary """
@@ -102,9 +102,9 @@ class ShoppingCart(DB.Model):
         cls.logger.info('Initializing database')
         cls.app = app
         # This is where we initialize SQLAlchemy from the Flask app
-        DB.init_app(app)
+        db.init_app(app)
         app.app_context().push()
-        DB.create_all()  # make our sqlalchemy tables
+        db.create_all()  # make our sqlalchemy tables
 
     @classmethod
     def all(cls):
@@ -137,7 +137,7 @@ class ShoppingCart(DB.Model):
 ###################################################
 # SHOPPING CART ITEMS MODEL
 ###################################################
-class ShoppingCartItems(DB.Model):
+class ShoppingCartItems(db.Model):
 
     """
     Class that represents a Shopcart item
@@ -149,11 +149,11 @@ class ShoppingCartItems(DB.Model):
     app = None
 
     # Table Schema
-    id = DB.Column(DB.Integer, primary_key=True)
-    productID = DB.Column(DB.Integer)
-    price = DB.Column(DB.Float)
-    quantity = DB.Column(DB.Integer)
-    cartId = DB.Column(DB.Integer)
+    id = db.Column(db.Integer, primary_key=True)
+    productID = db.Column(db.Integer)
+    price = db.Column(db.Float)
+    quantity = db.Column(db.Integer)
+    cartId = db.Column(db.Integer)
 
 
     def __init__(self, productID=0, price=0.0, quantity=0, cartId=0):
@@ -167,13 +167,13 @@ class ShoppingCartItems(DB.Model):
 
     def add(self):
         """ Adds an item to shopping cart """
-        DB.session.add(self)
-        DB.session.commit()
+        db.session.add(self)
+        db.session.commit()
 
     def delete(self):
         """Deletes an item from shopping cart """
-        DB.session.delete(self)
-        DB.session.commit()
+        db.session.delete(self)
+        db.session.commit()
 
     def serialize(self):
         """ Serializes an item into a dictionary """
@@ -207,9 +207,9 @@ class ShoppingCartItems(DB.Model):
         cls.logger.info('Initializing database')
         cls.app = app
         # This is where we initialize SQLAlchemy from the Flask app
-        DB.init_app(app)
+        db.init_app(app)
         app.app_context().push()
-        DB.create_all()  # make our sqlalchemy tables
+        db.create_all()  # make our sqlalchemy tables
 
     @classmethod
     def all(cls):
