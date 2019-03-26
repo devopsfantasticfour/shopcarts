@@ -19,24 +19,35 @@ Shopcart Service
 
 Paths:
 ------
+****** Shopcarts *******
 GET /carts - Returns a list all of the Carts
 GET /carts/{id} - Returns the Shopcart with a given id number
 POST /carts - creates a new shopcart record in the database
 PUT /carts/{id} - updates a Shopcart record in the database
 DELETE /carts/{id} - deletes a Shopcart record in the database
+
+****** Shopcart items *******
+GET /carts/{id}/items - Returns a list all items of the Carts
+GET /carts/{id}/items/{id} - Returns the Shopcart item with a given id number
+POST /carts/{id}/items - creates a new shopcart item record in the database
+PUT /carts/{id}/items/{id} - updates a Shopcart item record in the database
+DELETE /carts/{id}/items/{id} - deletes a Shopcart item record in the database
+
+****** ACTION on the resource ******
+POST /carts/{id}/items/{id}/delete - Action to delete a shopcart item
 """
 
-import os
 import sys
 import logging
-from flask import Flask, Response, jsonify, request, json, url_for, make_response, abort
+#from flask import Flask, Response, jsonify, request, json, url_for, make_response, abort
+from flask import jsonify, request, url_for, make_response, abort
 from flask_api import status    # HTTP Status Codes
 from werkzeug.exceptions import NotFound
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
 # variety of backends including SQLite, MySQL, and PostgreSQL
-from flask_sqlalchemy import SQLAlchemy
-from models import DataValidationError, ShoppingCart, ShoppingCartItems
+# from flask_sqlalchemy import SQLAlchemy
+from app.models import DataValidationError, ShoppingCart, ShoppingCartItems
 
 # Import Flask application
 from . import app
@@ -111,6 +122,7 @@ def index():
 ######################################################################
 @app.route('/carts', methods=['GET'])
 def list_carts():
+    """ Returns all of the Carts """
     if request.args.get('userId'):
         user_id = request.args.get('userId')
         app.logger.info('Getting Cart for user with id: {}'.format(user_id))
@@ -139,6 +151,7 @@ def list_carts():
 ######################################################################
 @app.route('/carts/<int:cart_id>', methods=['GET'])
 def get_carts(cart_id):
+    """ Returns all of the Carts with given ID """
     app.logger.info('Getting Cart with id: {}'.format(cart_id))
     cart = ShoppingCart.find(cart_id)
     if not cart:
@@ -152,6 +165,7 @@ def get_carts(cart_id):
 ######################################################################
 @app.route('/carts', methods=['POST'])
 def create_carts():
+    """ Create a new Cart """
     app.logger.info('Create Cart requested')
     check_content_type('application/json')
     cart = ShoppingCart(None)
@@ -168,6 +182,7 @@ def create_carts():
 ######################################################################
 @app.route('/carts/<int:cart_id>', methods=['PUT'])
 def update_carts(cart_id):
+    """ Update a cart with the given cart ID """
     app.logger.info('Updating cart with id: {}'.format(cart_id))
     check_content_type('application/json')
     cart = ShoppingCart.find(cart_id)
@@ -187,6 +202,7 @@ def update_carts(cart_id):
 ######################################################################
 @app.route('/carts/<int:cart_id>', methods=['DELETE'])
 def delete_carts(cart_id):
+    """ Deletes a Cart with given cart ID """
     app.logger.info('Request to delete cart with id: {}'.format(cart_id))
     cart = ShoppingCart.find(cart_id)
     if cart:
@@ -199,6 +215,7 @@ def delete_carts(cart_id):
 ######################################################################
 @app.route('/carts/items', methods=['GET'])
 def list_items():
+    """ Returns all of the Cart items """
     results = []
     app.logger.info('Getting all items of all cart')
     results = ShoppingCartItems.all()
@@ -210,6 +227,7 @@ def list_items():
 ######################################################################
 @app.route('/carts/<int:cart_id>/items', methods=['GET'])
 def get_items(cart_id):
+    """ Returns all the items in a cart """
     app.logger.info('Getting items of Cart with id: {}'.format(cart_id))
     cart = ShoppingCart.find(cart_id)
     if not cart:
@@ -267,6 +285,18 @@ def delete_items(cart_id, product_id):
             item.delete()
     return make_response('', status.HTTP_204_NO_CONTENT)
 
+######################################################################
+# ACTION TO DELETE AN ITEM FROM A CART
+######################################################################
+@app.route('/carts/<int:cart_id>/items/<int:item_id>/delete', methods=['POST'])
+def action_to_delete_item(cart_id, item_id):
+    app.logger.info('Action to delete item with id: {} from cart with id: {}'.format(item_id, cart_id))
+    results = ShoppingCartItems.find(cart_id, item_id)
+    if results:
+        for item in results:
+            item.delete()
+    return make_response('', status.HTTP_204_NO_CONTENT)
+
 
 
 ######################################################################
@@ -293,7 +323,7 @@ def initialize_logging(log_level=logging.INFO):
         # Set up default logging for submodules to use STDOUT
         # datefmt='%m/%d/%Y %I:%M:%S %p'
         fmt = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-        #logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
+        logging.basicConfig(stream=sys.stdout, level=log_level, format=fmt)
         # Make a new log handler that uses STDOUT
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter(fmt))

@@ -1,4 +1,3 @@
-#!/usr/bin/python -B
 
 """
 Package: app
