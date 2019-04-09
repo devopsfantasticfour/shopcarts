@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/devopsfantasticfour/shopcarts.svg?branch=master)](https://travis-ci.org/devopsfantasticfour/shopcarts)
+
 # restful-flask-shopcart
 
 This repo demonstrates **Test Driven Development** using `PyUnit` and `nose` (a.k.a. `nosetests`). It also demonstrates how to create a simple RESTful service using Python Flask and SQLite.
