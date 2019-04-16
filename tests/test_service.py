@@ -24,11 +24,15 @@ Test cases can be run with the following:
 import unittest
 import os
 import logging
+import json
 from flask_api import status    # HTTP Status Codes
-#from mock import MagicMock, patch
+
+from mock import MagicMock, patch
+
 from app.models import DataValidationError, db, ShoppingCart, ShoppingCartItems
 import app.service as service
 from .cart_factory import ShoppingCartFactory, ShoppingCartItemsFactory
+from unittest.mock import patch
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///../db/test.db')
 
@@ -99,12 +103,12 @@ class TestShoppingCartServer(unittest.TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         data = resp.get_json()
         self.assertEqual(data['state'], test_cart.state)
-
+        
     def test_get_cart_not_found(self):
         """ Get a Cart thats not found """
         resp = self.app.get('/carts/0')
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
-
+    
     def test_create_cart(self):
         """ Create a new Cart """
         test_cart = ShoppingCartFactory()
@@ -186,6 +190,42 @@ class TestShoppingCartServer(unittest.TestCase):
         for cart in data:
             self.assertEqual(cart['userId'], test_userId)
 
+    def test_invalid_content_type(self):
+        """ Test Invalid content type """
+        #carts = self._create_carts(10)
+        #test_state = carts[0].state
+        #state_carts = [cart for cart in carts if cart.state == test_state]
+        json_string = """{"state": "fill", "userId": 5}"""
+        data = json.dumps(json_string)
+        resp = self.app.post('/carts',
+                             json=data,
+                             content_type='application/xml')
+        self.assertEqual(resp.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+    def test_bad_request(self):
+        """ test a bad request by posting invalid cart json """
+        # bad shopcart with no userId
+        #json_string = """{"state": "fill", "userId": 5}"""
+        json_string = """{"state": "fill"}"""
+        data = json.dumps(json_string)
+        resp = self.app.post('/carts',
+                             json=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_method_not_allowed(self):
+        """ test a sending invalid http method """
+        resp = self.app.post('/carts/1')
+        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        
+    @patch('app.service.ShoppingCart.find_by_state')
+    def test_bad_request(self, bad_request_mock):
+         """ Test a Bad Request error from Find By Name """
+         bad_request_mock.side_effect = DataValidationError()
+         resp = self.app.get('/carts', query_string='userIde=1')
+         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+         
 
     # @patch('app.service.Pet.find_by_name')
     # def test_bad_request(self, bad_request_mock):
