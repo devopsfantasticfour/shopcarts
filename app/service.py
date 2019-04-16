@@ -34,7 +34,7 @@ PUT /carts/{id}/items/{id} - updates a Shopcart item record in the database
 DELETE /carts/{id}/items/{id} - deletes a Shopcart item record in the database
 
 ****** ACTION on the resource ******
-POST /carts/{id}/items/{id}/delete - Action to delete a shopcart item
+PUT /carts/{id}/items/{id}/delete - Action to delete a shopcart item
 """
 
 import sys
@@ -63,7 +63,8 @@ def request_validation_error(error):
 @app.errorhandler(status.HTTP_400_BAD_REQUEST)
 def bad_request(error):
     """ Handles bad reuests with 400_BAD_REQUEST """
-    message = error.message or str(error)
+    '''message = error.message or str(error) '''
+    message = str(error)
     app.logger.warning(message)
     return jsonify(status=status.HTTP_400_BAD_REQUEST,
                    error='Bad Request',
@@ -72,7 +73,7 @@ def bad_request(error):
 @app.errorhandler(status.HTTP_404_NOT_FOUND)
 def not_found(error):
     """ Handles resources not found with 404_NOT_FOUND """
-    message = error.message or str(error)
+    message = str(error)
     app.logger.warning(message)
     return jsonify(status=status.HTTP_404_NOT_FOUND,
                    error='Not Found',
@@ -81,7 +82,7 @@ def not_found(error):
 @app.errorhandler(status.HTTP_405_METHOD_NOT_ALLOWED)
 def method_not_supported(error):
     """ Handles unsuppoted HTTP methods with 405_METHOD_NOT_SUPPORTED """
-    message = error.message or str(error)
+    message = str(error)
     app.logger.warning(message)
     return jsonify(status=status.HTTP_405_METHOD_NOT_ALLOWED,
                    error='Method not Allowed',
@@ -90,7 +91,7 @@ def method_not_supported(error):
 @app.errorhandler(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 def mediatype_not_supported(error):
     """ Handles unsuppoted media requests with 415_UNSUPPORTED_MEDIA_TYPE """
-    message = error.message or str(error)
+    message = str(error)
     app.logger.warning(message)
     return jsonify(status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                    error='Unsupported media type',
@@ -99,7 +100,7 @@ def mediatype_not_supported(error):
 @app.errorhandler(status.HTTP_500_INTERNAL_SERVER_ERROR)
 def internal_server_error(error):
     """ Handles unexpected server error with 500_SERVER_ERROR """
-    message = error.message or str(error)
+    message = str(error)
     app.logger.error(message)
     return jsonify(status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                    error='Internal Server Error',
@@ -312,7 +313,7 @@ def delete_items(cart_id, product_id):
 ######################################################################
 # ACTION TO DELETE AN ITEM FROM A CART
 ######################################################################
-@app.route('/carts/<int:cart_id>/items/<int:item_id>/delete', methods=['POST'])
+@app.route('/carts/<int:cart_id>/items/<int:item_id>/delete', methods=['PUT'])
 def action_to_delete_item(cart_id, item_id):
     app.logger.info('Action to delete item with id: {} from cart with id: {}'.format(item_id, cart_id))
     results = ShoppingCartItems.find(cart_id, item_id)
@@ -343,7 +344,7 @@ def check_content_type(content_type):
 def initialize_logging(log_level=logging.INFO):
     """ Initialized the default logging to STDOUT """
     if not app.debug:
-        print 'Setting up logging...'
+        print('Setting up logging...')
         # Set up default logging for submodules to use STDOUT
         # datefmt='%m/%d/%Y %I:%M:%S %p'
         fmt = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
