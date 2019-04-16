@@ -1,0 +1,18 @@
+---
+# This manifest deploys a Python Flask application
+applications:
+- name: nyu-shopcart-service-s19
+  memory: 512M
+  instances: 1
+  timeout: 180
+  #random-route: true
+  host: nyu-shopcart-service-s19
+  domain: mybluemix.net
+  path: .
+  disk_quota: 1024M
+  buildpack: python_buildpack
+  command: python run.py
+
+  env:
+    FLASK_APP : server
+    FLASK_DEBUG : false

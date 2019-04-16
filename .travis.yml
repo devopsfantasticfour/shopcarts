@@ -1,12 +1,12 @@
 language: python
 python:
-  - "2.7"
+  - "3.6"
 
 # command to install dependencies
 install: "pip install -r requirements.txt"
 
-# commands to run tests
-before_script: redis-cli ping
+before_script: 
+  - psql -c 'create database shoppingcart;' -U postgres
 
 script:
   - nosetests
@@ -15,4 +15,13 @@ script:
   - codecov
 
 services:
-  - redis-server
+  - postgresql
+
+env:
+  global:
+    - DB_HOST=127.0.0.1
+    - DB_NAME=shoppingcart
+    - DB_USER=postgres
+    - DB_PASSWORD=
+
+

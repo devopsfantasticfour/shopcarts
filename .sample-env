@@ -1,0 +1,6 @@
+DEBUG=false
+SECRET_KEY="barbar"
+DB_HOST=localhost
+DB_NAME=shoppingcart
+DB_USER=username
+DB_PASSWORD=password

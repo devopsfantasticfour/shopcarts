@@ -24,6 +24,6 @@ class ShoppingCartItemsFactory(factory.Factory):
 if __name__ == '__main__':
     for _ in range(50):
         shopcart = ShoppingCartFactory()
-        print shopcart.serialize()
+        print(shopcart.serialize())
         shopcartitem = ShoppingCartItemsFactory()
         print(shopcartitem.serialize())
