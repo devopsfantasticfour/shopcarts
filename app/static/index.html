@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>SHopCart Demo RESTful Service</title>
+    <title>ShopCart Demo RESTful Service</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="static/css/blue_bootstrap.min.css">
-    <script type="text/javascript" src = "static/js/jquery-3.1.1.min.js"></script>
-    <script type="text/javascript" src="static/js/rest_api.js"></script>
+    <link rel="stylesheet" href="/css/blue_bootstrap.min.css">
+    <script type="text/javascript" src = "/js/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript" src="/js/rest_api.js"></script>
   </head>
   <body>
     <div class="container">
         <div class="page-header">
-            <h1>Shopcart Demo REST API Service</h1>
+            <h1>ShopCart Demo REST API Service</h1>
         </div>
 
         <!-- Flash Message -->
@@ -23,13 +23,13 @@
         </div>
 
         <div class="col-md-12" id="form_data">
-          Create, Retrieve, Update, and Delete a Shopping Cart:
+          Create, Retrieve, Update, and Delete a ShopCart:
           <div class="well">
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="pet_id">Pet ID:</label>
+                <label class="control-label col-sm-2" for="shopcart_id">Shopcart ID:</label>
                 <div class="col-sm-6">
-                  <input type="text" class="form-control" id="pet_id" placeholder="Enter ID of Shopping Cart">
+                  <input type="text" class="form-control" id="shopcart_id" placeholder="Enter ID of Shopcart">
                 </div>
                 <div class="col-sm-4">
                   <button type="submit" class="btn btn-primary" id="retrieve-btn">Retrieve</button>
@@ -40,23 +40,17 @@
 
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="pet_name">Name:</label>
+                <label class="control-label col-sm-2" for="shopcart_userId">User ID:</label>
                 <div class="col-sm-10">
-                  <input type="text" class="form-control" id="pet_name" placeholder="Enter name for Pet">
+                  <input type="text" class="form-control" id="shopcart_userId" placeholder="Enter User ID asscociated with this Shopcart">
                 </div>
               </div>
               <div class="form-group">
-                <label class="control-label col-sm-2" for="pet_category">Category:</label>
+                <label class="control-label col-sm-2" for="shopcart_state">State:</label>
                 <div class="col-sm-10">
-                  <input type="text" class="form-control" id="pet_category" placeholder="Enter category for Pet">
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="control-label col-sm-2" for="pet_available">Available:</label>
-                <div class="col-sm-10">
-                  <select class="form-control" id="pet_available">
-                      <option value="true" selected>True</option>
-                      <option value="false">False</option>
+                  <select class="form-control" id="shopcart_state">
+                      <option value="active" selected>Active</option>
+                      <option value="inactive">Inactive</option>
                   </select>
                 </div>
               </div>
@@ -77,9 +71,8 @@
             <thead>
             <tr>
                 <th class="col-md-1">ID</th>
-                <th class="col-md-4">Name</th>
-                <th class="col-md-4">Category</th>
-                <th class="col-md-3">Available</th>
+                <th class="col-md-4">User ID</th>
+                <th class="col-md-4">State</th>
             </tr>
             </thead>
           </table>
