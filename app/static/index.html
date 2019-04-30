@@ -1,62 +1,71 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>ShopCart Demo RESTful Service</title>
+    <title>Shopcarts REST API Service</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/css/blue_bootstrap.min.css">
-    <script type="text/javascript" src = "/js/jquery-3.1.1.min.js"></script>
-    <script type="text/javascript" src="/js/rest_api.js"></script>
+    <link rel="stylesheet" href="static/css/blue_bootstrap.min.css">
+    <script type="text/javascript" src = "static/js/jquery-3.1.1.min.js"></script>
+    <script type="text/javascript" src="static/js/rest_api.js"></script>
   </head>
-  <body>
-    <div class="container">
+  <body style="background-color:white">
+    <div class="container" style="background-color:white">
         <div class="page-header">
-            <h1>ShopCart Demo REST API Service</h1>
+            <h1 style="color:#007bff">Shopcarts REST API Service</h1>
         </div>
 
         <!-- Flash Message -->
         <div class="table-responsive">
           <table class="table">
-            <tr><td>Status:</td><td><span id="flash_message"></span></td></tr>
+            <tr><td style="color:#007bff">Status:</td><td><span style="color:#006400" id="flash_message"></span></td></tr>
           </table>
         </div>
 
-        <div class="col-md-12" id="form_data">
-          Create, Retrieve, Update, and Delete a ShopCart:
-          <div class="well">
+	<h3 style="color:#007bff">Add, Retrieve, Update, and Delete an item in Shopcart:</h3>
+          <div style="background-color:#a9a9a9" class="well">
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="shopcart_id">Shopcart ID:</label>
+                <label class="control-label col-sm-2" for="user_id">User ID:</label>
                 <div class="col-sm-6">
-                  <input type="text" class="form-control" id="shopcart_id" placeholder="Enter ID of Shopcart">
+                  <input type="text" class="form-control" id="user_id" placeholder="Enter ID of User or Leave blank to fetch all shopcarts">
                 </div>
                 <div class="col-sm-4">
-                  <button type="submit" class="btn btn-primary" id="retrieve-btn">Retrieve</button>
-                  <button type="submit" class="btn btn-danger" id="delete-btn">Delete</button>
+                  <button type="submit" class="btn btn-primary" id="retrieve-all-btn">Retrieve All</button>
+                  <button type="submit" class="btn btn-danger" id="delete-all-btn">Delete All</button>
+                  <button type="submit" class="btn btn-primary" id="total-btn">Total</button>
                 </div>
               </div>
             </div> <!-- form div -->
 
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="shopcart_userId">User ID:</label>
+                <label class="control-label col-sm-2" for="product_id">Product ID:</label>
+                <div class="col-sm-6">
+                  <input type="text" class="form-control" id="product_id" placeholder="Enter ID of Product">
+                </div>
+                <div class="col-sm-4">
+                  <button type="submit" class="btn btn-primary" id="retrieve-btn">Retrieve        </button>
+                  <button type="submit" class="btn btn-danger" id="delete-btn">Delete        </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-horizontal">
+              <div class="form-group">
+                <label class="control-label col-sm-2" for="quantity">Quantity:</label>
                 <div class="col-sm-10">
-                  <input type="text" class="form-control" id="shopcart_userId" placeholder="Enter User ID asscociated with this Shopcart">
+                  <input type="text" class="form-control" id="quantity" placeholder="Enter quantity for Product">
                 </div>
               </div>
               <div class="form-group">
-                <label class="control-label col-sm-2" for="shopcart_state">State:</label>
+                <label class="control-label col-sm-2" for="price">Price:</label>
                 <div class="col-sm-10">
-                  <select class="form-control" id="shopcart_state">
-                      <option value="active" selected>Active</option>
-                      <option value="inactive">Inactive</option>
-                  </select>
+                  <input type="text" class="form-control" id="price" placeholder="Enter price of Product">
                 </div>
               </div>
               <div class="form-group">
                 <div class="col-sm-offset-2 col-sm-10">
-                  <button type="submit" class="btn btn-primary" id="search-btn">Search</button>
                   <button type="submit" class="btn btn-primary" id="clear-btn">Clear</button>
                   <button type="submit" class="btn btn-success" id="create-btn">Create</button>
                   <button type="submit" class="btn btn-warning" id="update-btn">Update</button>
@@ -66,102 +75,20 @@
         </div>
 
         <!-- Search Results -->
-        <div class="table-responsive col-md-12" id="search_results">
-          <table class="table-striped">
-            <thead>
-            <tr>
-                <th class="col-md-1">ID</th>
-                <th class="col-md-4">User ID</th>
-                <th class="col-md-4">State</th>
-            </tr>
-            </thead>
-          </table>
+        <div class="table-responsive col-md-12" id="search_results" style="color:#000000">
+        </div>
+        </div><!--/span-->
+
         </div>
 
 
+        <footer>
+          <br><br>
+          <br><br>
+          <p>&copy; NYU DevOps Class - Spring 2019</p>
+        </footer>
      </div><!--/row-->
 
-     <hr size="1">
-
-     <div class="col-md-12" id="form_data">
-       Create, Retrieve, Update, and Delete a ShopCart Item:
-       <div class="well">
-         <div class="form-horizontal">
-           <div class="form-group">
-             <label class="control-label col-sm-2" for="cartId">Shopcart ID for Item:</label>
-             <div class="col-sm-6">
-               <input type="text" class="form-control" id="cartId" placeholder="Enter ID of Shopcart">
-             </div>
-             <label class="control-label col-sm-2" for="item_id">Item ID:</label>
-             <div class="col-sm-6">
-               <input type="text" class="form-control" id="item_id" placeholder="Enter ID of Item">
-             </div>
-             <div class="col-sm-4">
-               <button type="submit" class="btn btn-primary" id="retrieve-item-btn">Retrieve</button>
-               <button type="submit" class="btn btn-danger" id="delete-item-btn">Delete</button>
-             </div>
-           </div>
-         </div> <!-- form div -->
-         <div class="form-horizontal">
-           <div class="form-group">
-             <label class="control-label col-sm-2" for="item_cartId">Shopcart ID:</label>
-             <div class="col-sm-10">
-               <input type="text" class="form-control" id="item_cartId" placeholder="Enter ID of Shopcart">
-             </div>
-           </div>
-           <div class="form-group">
-             <label class="control-label col-sm-2" for="item_price">Price:</label>
-             <div class="col-sm-10">
-               <input type="text" class="form-control" id="item_price" placeholder="Enter price of item">
-             </div>
-           </div>
-           <div class="form-group">
-             <label class="control-label col-sm-2" for="item_productID">Product ID:</label>
-             <div class="col-sm-10">
-               <input type="text" class="form-control" id="item_productID" placeholder="Enter product ID of item">
-             </div>
-           </div>
-           <div class="form-group">
-             <label class="control-label col-sm-2" for="item_quantity">Quantity:</label>
-             <div class="col-sm-10">
-               <input type="text" class="form-control" id="item_quantity" placeholder="Enter item quanitity">
-             </div>
-           </div>
-
-           <div class="form-group">
-             <div class="col-sm-offset-2 col-sm-10">
-               <button type="submit" class="btn btn-primary" id="search-item-btn">Search</button>
-               <button type="submit" class="btn btn-primary" id="clear-item-btn">Clear</button>
-               <button type="submit" class="btn btn-success" id="create-item-btn">Create</button>
-               <button type="submit" class="btn btn-warning" id="update-item-btn">Update</button>
-             </div>
-           </div>
-       </div> <!-- form div -->
-     </div>
-
-     <!-- Search Results -->
-     <div class="table-responsive col-md-12" id="search_items_results">
-       <table class="table-striped">
-         <thead>
-         <tr>
-             <th class="col-md-1">Cart ID</th>
-             <th class="col-md-4">Item ID</th>
-             <th class="col-md-4">Price</th>
-             <th class="col-md-4">Product ID</th>
-             <th class="col-md-4">Quantity</th>
-         </tr>
-         </thead>
-       </table>
-     </div>
-
-
-
-   </div>
-
-     <footer>
-       <br><br>
-       <p>&copy; NYU DevOps Company 2017</p>
-     </footer>
   </div><!-- container -->
   </body>
 </html>

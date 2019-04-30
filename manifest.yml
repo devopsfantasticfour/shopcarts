@@ -1,5 +1,5 @@
 ---
-# This manifest deploys a Python Flask application
+# This manifest deploys a Python Flask application with a Redis database
 applications:
 - name: nyu-shopcart-service-s19
   memory: 512M
@@ -12,7 +12,8 @@ applications:
   disk_quota: 1024M
   buildpack: python_buildpack
   command: python run.py
-
+  services:
+  - Db2 database
   env:
     FLASK_APP : server
     FLASK_DEBUG : false

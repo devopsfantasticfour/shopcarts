@@ -9,20 +9,16 @@ Vagrant.configure(2) do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "ubuntu/xenial64"
-  config.vm.hostname = "restful"
+  # set up network ip and port forwarding
+  #config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: "127.0.0.1"
+  #config.vm.network "private_network", ip: "192.168.33.10"
 
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # config.vm.network "forwarded_port", guest: 80, host: 8080
+  # Forward Flask and Kubernetes ports
+  config.vm.network "forwarded_port", guest: 8001, host: 8000, host_ip: "127.0.0.1"
   config.vm.network "forwarded_port", guest: 5000, host: 5000, host_ip: "127.0.0.1"
-
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
   config.vm.network "private_network", ip: "192.168.33.10"
 
-  # Provider-specific configuration so you can fine-tune various
-  # backing providers for Vagrant. These expose provider-specific options.
-  # Example for VirtualBox:
-  #
+
   config.vm.provider "virtualbox" do |vb|
     # Customize the amount of memory on the VM:
     vb.memory = "512"
@@ -37,56 +33,56 @@ Vagrant.configure(2) do |config|
     config.vm.provision "file", source: "~/.gitconfig", destination: "~/.gitconfig"
   end
 
-  # Copy the ssh keys into the vm for git access
+  # Copy your ssh keys for github so that your git credentials work
   if File.exists?(File.expand_path("~/.ssh/id_rsa"))
     config.vm.provision "file", source: "~/.ssh/id_rsa", destination: "~/.ssh/id_rsa"
-  end
-
-  if File.exists?(File.expand_path("~/.ssh/id_rsa.pub"))
-    config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
   end
 
   # Copy your IBM Clouid API Key if you have one
   if File.exists?(File.expand_path("~/.bluemix/apiKey.json"))
     config.vm.provision "file", source: "~/.bluemix/apiKey.json", destination: "~/.bluemix/apiKey.json"
   end
- 
-  # Copy your .vimrc file so that your vi looks like you expect
+
+  # Copy your ~/.vimrc file so that vi looks the same
   if File.exists?(File.expand_path("~/.vimrc"))
     config.vm.provision "file", source: "~/.vimrc", destination: "~/.vimrc"
   end
+
+  # Windows users need to change the permission of files and directories
+  # so that nosetests runs without extra arguments.
+  # Mac users can comment this next line out
+  config.vm.synced_folder ".", "/vagrant", mount_options: ["dmode=775,fmode=664"]
 
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
-    apt-get install -y git python3-pip python3-dev
+    apt-get install -y git python-pip python-dev build-essential
     apt-get -y autoremove
+    python -m pip install --upgrade pip
+    sudo pip install --upgrade pip
+
+    # Install PhantomJS for Selenium browser support
+   echo "\n***********************************"
+   echo " Installing PhantomJS for Selenium"
+   echo "***********************************\n"
+   sudo apt-get install -y chrpath libssl-dev libxft-dev
+   # PhantomJS https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2
+   cd ~
+   export PHANTOM_JS="phantomjs-1.9.7-linux-x86_64"
+   #export PHANTOM_JS="phantomjs-2.1.1-linux-x86_64"
+   wget https://bitbucket.org/ariya/phantomjs/downloads/$PHANTOM_JS.tar.bz2
+   sudo tar xvjf $PHANTOM_JS.tar.bz2
+   sudo mv $PHANTOM_JS /usr/local/share
+   sudo ln -sf /usr/local/share/$PHANTOM_JS/bin/phantomjs /usr/local/bin
+   rm -f $PHANTOM_JS.tar.bz2
+
     # Install app dependencies
     cd /vagrant
-    pip3 install -r requirements.txt
+    #python -m pip install -r requirements.txt
+    sudo pip install -r requirements.txt
   SHELL
-
-  ######################################################################
-  # Create .env file
-  ######################################################################
-  config.vm.provision "shell", inline: <<-SHELL
-    echo "Creating /vagrant/.env"
-    rm -rf /vagrant/.env
-    touch /vagrant/.env
-    chown vagrant:vagrant /vagrant/.env
-    echo "DB_HOST = localhost \nDB_NAME = shoppingcart \nDB_USER = shoppingcart  \nDB_PASSWORD = shoppingcart\n" >/vagrant/.env
-  SHELL
-
-   ######################################################################
-   # install local postgres through docker image
-   ######################################################################
-   config.vm.provision "docker" do |d|
-     d.pull_images "postgres:11-alpine"
-     d.run "postgres:11-alpine",
-       args: "--restart=always -d --name psql -h psql -p 5432:5432 -v /var/docker/postgresql:/data -e POSTGRES_PASSWORD=shoppingcart -e POSTGRES_USER=shoppingcart -e POSTGRES_DB=shoppingcart"
-   end
 
   ######################################################################
   # Setup a Bluemix and Kubernetes environment
@@ -111,5 +107,27 @@ Vagrant.configure(2) do |config|
     echo " kubectl proxy --address='0.0.0.0'"
     echo "************************************\n"
   SHELL
-end
 
+  ######################################################################
+  # Add PostgreSQL docker container
+  ######################################################################
+  config.vm.provision "docker" do |d|
+    d.pull_images "postgres"
+    d.run "postgres",
+       args: "-d --name postgres -p 5432:5432 -v postgresql_data:/var/lib/postgresql/data"
+  end
+
+  # Create the database after Docker is running
+  config.vm.provision "shell", inline: <<-SHELL
+    # Wait for mariadb to come up
+    echo "Waiting 20 seconds for PostgreSQL to start..."
+    sleep 20
+    cd /vagrant
+    docker exec postgres psql -U postgres -c "CREATE DATABASE development;"
+    python manage.py development
+    docker exec postgres psql -U postgres -c "CREATE DATABASE test;"
+    python manage.py test
+    cd
+  SHELL
+
+end

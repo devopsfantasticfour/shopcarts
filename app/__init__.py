@@ -1,58 +1,33 @@
-
 """
 Package: app
-
 Package for the application models and services
 This module also sets up the logging to be used with gunicorn
 """
 import logging
-import os
-from environs import Env
 from flask import Flask
-
+from flask_sqlalchemy import SQLAlchemy
+import ibm_db_sa
+from app.vcap_services import get_database_uri
 # Create Flask application
 app = Flask(__name__)
 
-from . import service
-
-# base directory of flask app
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # up one directory
-# root directory of project
-ROOT_DIR = os.path.dirname(BASE_DIR)  # up one more directory
-
-env = Env()
-
-# read env file if it exists
-try:
-    env.read_env(os.path.join(ROOT_DIR, '.env'))
-except OSError:
-    pass
-
-DB_HOST = env('DB_HOST')
-DB_NAME = env('DB_NAME')
-DB_USER = env('DB_USER')
-DB_PASSWORD = env('DB_PASSWORD')
-
-SECRET_KEY = env('SECRET_KEY', 'Please, tell nobody... Shhhhh')
-
+# We use db2 as persistence database
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SECRET_KEY'] = 'please, tell nobody... Shhhh'
 app.config['LOGGING_LEVEL'] = logging.INFO
 
-# Create Postgres connection string
-postgres_connection = 'postgres://{user}:{pw}@{host}/{db}'.format(user=DB_USER, pw=DB_PASSWORD, host=DB_HOST,
-                                                                  db=DB_NAME)
-app.config['SQLALCHEMY_DATABASE_URI'] = postgres_connection
+# Initialize SQLAlchemy
+db = SQLAlchemy(app)
+
+from app import service, model
 
 # Set up logging for production
-print ('Setting up logging for {}...'.format(__name__))
+print 'Setting up logging for {}...'.format(__name__)
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
     if gunicorn_logger:
         app.logger.handlers = gunicorn_logger.handlers
         app.logger.setLevel(gunicorn_logger.level)
-    else:
-        service.initialize_logging()
-    service.init_db()  # make our sqlalchemy tables
 
 app.logger.info('Logging established')
