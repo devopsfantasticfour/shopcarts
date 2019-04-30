@@ -13,34 +13,43 @@
 # limitations under the License.
 
 """
-Shop Carts API Service Test Suite
+Shopcart API Service Test Suite
 
 Test cases can be run with the following:
   nosetests -v --with-spec --spec-color
   coverage report -m
   codecov --token=$CODECOV_TOKEN
 """
-
 import unittest
 import os
-import logging
 import json
+import logging
 from flask_api import status    # HTTP Status Codes
-
 from mock import MagicMock, patch
-
-from app.models import DataValidationError, db, ShoppingCart, ShoppingCartItems
+from werkzeug.exceptions import NotFound,BadRequest
+from app.model import Shopcart, DataValidationError, db
+import app.vcap_services as vcap
 import app.service as service
-from .cart_factory import ShoppingCartFactory, ShoppingCartItemsFactory
-from unittest.mock import patch
+from app.service import app
+
+# Status Codes
+HTTP_200_OK = 200
+HTTP_201_CREATED = 201
+HTTP_204_NO_CONTENT = 204
+HTTP_400_BAD_REQUEST = 400
+HTTP_404_NOT_FOUND = 404
+HTTP_405_METHOD_NOT_ALLOWED = 405
+HTTP_409_CONFLICT = 409
+HTTP_415_UNSUPPORTED_MEDIA_TYPE = 415
+
 
 DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///../db/test.db')
 
 ######################################################################
 #  T E S T   C A S E S
 ######################################################################
-class TestShoppingCartServer(unittest.TestCase):
-    """ Shop Carts Server Tests """
+class TestShopcartServer(unittest.TestCase):
+    """ Shopcart Server Tests """
 
     @classmethod
     def setUpClass(cls):
@@ -59,188 +68,315 @@ class TestShoppingCartServer(unittest.TestCase):
         service.init_db()
         db.drop_all()    # clean up the last tests
         db.create_all()  # create new tables
+        Shopcart(user_id=1, product_id=1, quantity=1, price=12.00).save()
+        Shopcart(user_id=1, product_id=2, quantity=1, price=15.00).save()
         self.app = service.app.test_client()
 
     def tearDown(self):
         db.session.remove()
         db.drop_all()
 
-    def _create_carts(self, count):
-        """ Factory method to create carts in bulk """
-        carts = []
-        for _ in range(count):
-            test_cart = ShoppingCartFactory()
-            resp = self.app.post('/carts',
-                                 json=test_cart.serialize(),
-                                 content_type='application/json')
-            self.assertEqual(resp.status_code, status.HTTP_201_CREATED, 'Could not create test cart')
-            new_cart = resp.get_json()
-            test_cart.id = new_cart['id']
-            carts.append(test_cart)
-        return carts
 
+    # FlaskRESTPlus takes over the index so we can't test it
     def test_index(self):
-        """ Test the Home Page """
+        """ Test the index page """
         resp = self.app.get('/')
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
-        self.assertEqual(data['name'], 'Shopping cart REST API Service')
+        self.assertEqual(resp.status_code, HTTP_200_OK)
+        self.assertIn('Shopcarts REST API Service', resp.data)
 
-    def test_get_cart_list(self):
-        """ Get a list of Carts """
-        self._create_carts(5)
-        resp = self.app.get('/carts')
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
-        self.assertEqual(len(data), 5)
-
-    def test_get_cart(self):
-        """ Get a single Cart """
-        # get the id of a cart
-        test_cart = self._create_carts(1)[0]
-        resp = self.app.get('/carts/{}'.format(test_cart.id),
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
-        self.assertEqual(data['state'], test_cart.state)
-        
-    def test_get_cart_not_found(self):
-        """ Get a Cart thats not found """
-        resp = self.app.get('/carts/0')
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
     
-    def test_create_cart(self):
-        """ Create a new Cart """
-        test_cart = ShoppingCartFactory()
-        resp = self.app.post('/carts',
-                             json=test_cart.serialize(),
-                             content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-        # Make sure location header is set
-        location = resp.headers.get('Location', None)
-        self.assertTrue(location != None)
-        # Check the data is correct
-        new_cart = resp.get_json()
-        self.assertEqual(new_cart['state'], test_cart.state, "State does not match")
-        self.assertEqual(new_cart['userId'], test_cart.userId, "UserId does not match")
-        # Check that the location header was correct
-        resp = self.app.get(location,
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        new_cart = resp.get_json()
-        self.assertEqual(new_cart['state'], test_cart.state, "State does not match")
-        self.assertEqual(new_cart['userId'], test_cart.userId, "UserId does not match")
+    def test_health_check(self):
+        """ Test /healthcheck """
+        resp = self.app.get("/healthcheck")
+        self.assertEqual(resp.status_code, HTTP_200_OK)
+        self.assertIn('Healthy', resp.data)
 
-    def test_update_cart(self):
-        """ Update an existing Cart """
-        # create a cart to update
-        test_cart = ShoppingCartFactory()
-        resp = self.app.post('/carts',
-                             json=test_cart.serialize(),
-                             content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 
-        # update the cart
-        new_cart = resp.get_json()
-        new_cart['userId'] = 5555
-        resp = self.app.put('/carts/{}'.format(new_cart['id']),
-                            json=new_cart,
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        updated_cart = resp.get_json()
-        self.assertEqual(updated_cart['userId'], 5555)
 
-    def test_delete_cart(self):
-        """ Delete a Cart """
-        test_cart = self._create_carts(1)[0]
-        resp = self.app.delete('/carts/{}'.format(test_cart.id),
-                               content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(len(resp.data), 0)
-        # make sure they are deleted
-        resp = self.app.get('/carts/{}'.format(test_cart.id),
-                            content_type='application/json')
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+    def test_create_shopcart_entry_new_product(self):
+        """ Create a new Shopcart entry - add new product"""
 
-    def test_query_cart_list_by_state(self):
-        """ Query Carts by state """
-        carts = self._create_carts(10)
-        test_state = carts[0].state
-        state_carts = [cart for cart in carts if cart.state == test_state]
-        resp = self.app.get('/carts',
-                            query_string='state={}'.format(test_state))
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
-        self.assertEqual(len(data), len(state_carts))
-        # check the data just to be sure
-        for cart in data:
-            self.assertEqual(cart['state'], test_state)
+        #Get number of products in users shopcart
+        product_count = self.get_product_count(2)
 
-    def test_query_cart_list_by_userId(self):
-        """ Query Carts by userId """
-        carts = self._create_carts(10)
-        test_userId = carts[0].userId
-        userId_carts = [cart for cart in carts if cart.userId == test_userId]
-        resp = self.app.get('/carts',
-                            query_string='userId={}'.format(test_userId))
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        data = resp.get_json()
-        self.assertEqual(len(data), len(userId_carts))
-        # check the data just to be sure
-        for cart in data:
-            self.assertEqual(cart['userId'], test_userId)
 
-    def test_invalid_content_type(self):
-        """ Test Invalid content type """
-        #carts = self._create_carts(10)
-        #test_state = carts[0].state
-        #state_carts = [cart for cart in carts if cart.state == test_state]
-        json_string = """{"state": "fill", "userId": 5}"""
-        data = json.dumps(json_string)
-        resp = self.app.post('/carts',
-                             json=data,
-                             content_type='application/xml')
-        self.assertEqual(resp.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-
-    def test_bad_request(self):
-        """ test a bad request by posting invalid cart json """
-        # bad shopcart with no userId
-        #json_string = """{"state": "fill", "userId": 5}"""
-        json_string = """{"state": "fill"}"""
-        data = json.dumps(json_string)
-        resp = self.app.post('/carts',
-                             json=data,
-                             content_type='application/json')
+        # check if the required data is missing
+        new_prod = dict(user_id='',product_id=1, quantity=1, price=12.00)
+        data = json.dumps(new_prod)
+        resp = self.app.post('/shopcarts',
+                              data=data,
+                              content_type='application/json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_method_not_allowed(self):
-        """ test a sending invalid http method """
-        resp = self.app.post('/carts/1')
-        self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        new_prod = dict(user_id=1, product_id=1, quantity='a', price=12.00)
+        data = json.dumps(new_prod)
+        resp = self.app.post('/shopcarts',
+                              data=data,
+                              content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-        
-    @patch('app.service.ShoppingCart.find_by_state')
-    def test_bad_request(self, bad_request_mock):
-         """ Test a Bad Request error from Find By Name """
-         bad_request_mock.side_effect = DataValidationError()
-         resp = self.app.get('/carts', query_string='userIde=1')
-         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+
+        new_prod = dict(user_id=1, product_id=1, quantity=0, price=12.00)
+        data = json.dumps(new_prod)
+        resp = self.app.post('/shopcarts',
+                              data=data,
+                              content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+        # add a new product to shopcart of user
+        new_product = dict(user_id=2, product_id=1, quantity=1, price=12.00)
+        data = json.dumps(new_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        #Check the data is correct
+        new_json = json.loads(resp.data)
+        self.assertEqual(new_json['user_id'], 2)
+        self.assertEqual(new_json['product_id'], 1)
+
+        # check that count has gone up and includes sammy
+        resp = self.app.get('/shopcarts/2')
+
+        # print 'resp_data(2): ' + resp.data
+        data = json.loads(resp.data)
+        print(data)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn(new_json, data)
+        self.assertEqual(len(data), product_count + 1)
+
+    def test_list_shop_cart_entry_by_user_id(self):
+        """ Query shopcart by user_id """
+        shopcart = Shopcart.findByUserId(1)
+        print(shopcart[0].user_id)
+        resp = self.app.get('/shopcarts/{}'.format(shopcart[0].user_id),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = json.loads(resp.data)
+        self.assertTrue(len(resp.data) > 0)
+
+        resp = self.app.get('/shopcarts/999',
+                             content_type='application/json')
+        #self.assertRaises(NotFound)
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        data = json.loads(resp.data)
+        print(data)
+        print(data['message'])
+        self.assertIn('was not found', data['message'])
+        ##self.assertEqual(len(json.loads(resp.data)),0)
+
+
+
+
          
+    def test_list_all_shopcarts(self):
+        """ Query all the shopcart in the system """
+        shopcart = Shopcart.list_users()
+        cnt = len(shopcart)
+        print(cnt)
+        print("----------------------------------------------------")
+        resp = self.app.get('/shopcarts',
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)        
+        print(resp.data); 
+        data = json.loads(resp.data)
+        self.assertEqual(cnt, len(data))
 
-    # @patch('app.service.Pet.find_by_name')
-    # def test_bad_request(self, bad_request_mock):
-    #     """ Test a Bad Request error from Find By Name """
-    #     bad_request_mock.side_effect = DataValidationError()
-    #     resp = self.app.get('/pets', query_string='name=fido')
-    #     self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-    #
-    # @patch('app.service.Pet.find_by_name')
-    # def test_mock_search_data(self, pet_find_mock):
-    #     """ Test showing how to mock data """
-    #     pet_find_mock.return_value = [MagicMock(serialize=lambda: {'name': 'fido'})]
-    #     resp = self.app.get('/pets', query_string='name=fido')
-    #     self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        Shopcart(user_id=30, product_id=1, quantity=5, price=12.00).save()
+        Shopcart(user_id=31, product_id=2, quantity=5, price=12.00).save()
+        shopcart = Shopcart.list_users()
+        cnt = len(shopcart)
+        resp = self.app.get('/shopcarts',
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)    
+        data = json.loads(resp.data)
+        self.assertEqual(cnt, len(data))
 
+
+
+    def test_shop_cart_amount_by_user_id(self):
+        """ Query the total amount of products in shopcart by user_id"""
+        shopcarts = Shopcart.findByUserId(1)
+        total = 0.0
+        for shopcart in shopcarts:
+             total = total + shopcart.price * shopcart.quantity
+        total = round(total, 2)
+
+        resp = self.app.get('/shopcarts/1/total',
+                        content_type='application/json')
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        new_json = json.loads(resp.data)
+        self.assertEqual(total, new_json['total_price'])
+
+    def test_update_shopcart_quantity(self):
+
+        """ Update a Shopcart quantity """
+        # Add test product in database
+        test_product = dict(user_id=1, product_id=1, quantity=5, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        # make it chekc if the quantity is number
+        shopcart = Shopcart.find(1,1)
+        test_error = dict(user_id=1, product_id=1, quantity='a', price=12.00)
+        data_error = json.dumps(test_error)
+        resp = self.app.put('/shopcarts/{uid}/product/{pid}'.format(uid = shopcart.user_id, pid = shopcart.product_id),
+                            data=data_error,
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+
+
+        # make it chekc if the quantity is more than 0
+	shopcart = Shopcart.find(1,1)
+	test_error = dict(user_id=1, product_id=1, quantity=0, price=12.00)
+        data_error = json.dumps(test_error)
+	resp = self.app.put('/shopcarts/{uid}/product/{pid}'.format(uid = shopcart.user_id, pid = shopcart.product_id),
+                            data=data_error,
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+
+        # update the test product quantity
+        shopcart = Shopcart.find(1, 1)
+        resp = self.app.put('/shopcarts/{uid}/product/{pid}'.format(uid = shopcart.user_id, pid = shopcart.product_id),
+                            data=data,
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+
+        #Check quantity is updated to 3
+        new_json = json.loads(resp.data)
+        self.assertEqual(new_json['quantity'], 5)
+   
+        resp = self.app.put('/shopcarts/999/product/999',
+                            data=data,
+                            content_type='application/json')
+        self.assertRaises(NotFound)
+
+    def test_get_shopcart_product_info(self):
+        """ Query quantity and price of a product shopcart by user_id and product_id """
+        # Add test product in database
+        test_product = dict(user_id=10, product_id=1, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        # Fetch info of product
+        shopcart = Shopcart.find(10, 1)
+        resp = self.app.get('/shopcarts/{}/product/{}'.format(shopcart.user_id, shopcart.product_id),
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        ans = json.loads(resp.data)
+        self.assertEqual(ans['quantity'], shopcart.quantity)
+        self.assertEqual(ans['price'], shopcart.price)
+
+        resp = self.app.get('/shopcarts/999/product/999',
+                            content_type='application/json')
+        self.assertRaises(NotFound)
+
+
+
+    def test_delete_product(self):
+        """ Delete product in Shopcart """
+        # Add test product in database
+        test_product = dict(user_id=1, product_id=1, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        # Delet the test product
+        shopcart = Shopcart.find(1, 1)
+        resp = self.app.delete('/shopcarts/{uid}/product/{pid}'.format(uid = shopcart.user_id, pid = shopcart.product_id))
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+
+    def test_get_users_by_total_cost_of_shopcart(self):
+        Shopcart(user_id=3, product_id=1, quantity=5, price=12.00).save()
+        resp = self.app.get('/shopcarts/users?amount=60',
+                            content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(json.loads(resp.data)), 1)
+
+    def test_get_users_by_total_cost_of_shopcart_bad_request(self):
+        resp = self.app.get('/shopcarts/users?amount="hello"',
+                            content_type='application/json')
+        self.assertRaises(BadRequest)
+        resp = self.app.get('/shopcarts/users',
+                            content_type='application/json')
+        self.assertRaises(NotFound)
+
+    def test_delete_user_product(self):
+        """ Delete products in Shopcart """
+        # Add test products in database
+        test_product = dict(user_id=1, product_id=1, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        test_product = dict(user_id=1, product_id=3, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        # Delet the test products of same user
+        resp = self.app.delete('/shopcarts/{uid}'.format(uid = 1))
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_reset(self):
+        # Add test products in database
+        test_product = dict(user_id=1, product_id=1, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        test_product = dict(user_id=1, product_id=3, quantity=1, price=12.00)
+        data = json.dumps(test_product)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='application/json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+
+        resp = self.app.delete('/shopcarts/reset')
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_vcap_services(self):
+        db_url = vcap.get_database_uri()
+        self.assertNotEqual(db_url, "")
+
+    def test_invalid_content_type(self):       
+        data = dict(user_id=10, product_id=10, quantity=5, price=12.00)
+        resp = self.app.post('/shopcarts',
+                             data=data,
+                             content_type='dict')
+        self.assertEqual(resp.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+
+######################################################################
+# Utility functions
+######################################################################
+
+    def get_product_count(self, user_id):
+        """ save the current number of products in user's shopcart """
+        resp = self.app.get('/shopcarts/'+str(user_id))
+        #self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        if (resp.status_code == status.HTTP_404_NOT_FOUND):
+		return 0
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+	data = json.loads(resp.data)
+        return len(data)
 
 ######################################################################
 #   M A I N
