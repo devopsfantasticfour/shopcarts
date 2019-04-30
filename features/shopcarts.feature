@@ -70,14 +70,6 @@ Scenario: Update information of a product from Shopcart of the user
     And I should see 2 in the "Quantity" field
     And I should see 13.00 in the "Price" field
 
-Scenario: Get user list having shopcart worth more than a given amount
-    When I visit the "Home Page"
-    And I set the "amount" to 15
-    And I press the "Search" button
-    Then I should see 1 in the query search results
-    And I should not see 2 in the query search results
-    
-
 
 Scenario: Get list of products of a user's shopcart
     When I visit the "Home Page"
