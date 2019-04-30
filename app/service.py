@@ -34,6 +34,37 @@ def index():
     return app.send_static_file('index.html')
 
 ######################################################################
+######################################################################
+api = Api(app,
+          version='1.0.0',
+          title='Shopcarts REST API Service',
+          description='This service aims at providing users facility to add, remove, modify and list items in their cart.',
+          doc='/apidocs'
+         )
+
+amount_fields = api.model('Resource', {
+    'amount':fields.Integer(required=True,
+                            description='the amount for searching user shopcart')
+    }, mask='{amount}' )
+
+
+# This namespace is the start of the path i.e., /pets
+ns = api.namespace('shopcarts', description='Shopcart operations')
+
+# Define the model so that the docs reflect what can be sent
+shopcart_model = api.model('Shopcart', {
+    'user_id': fields.Integer(readOnly=True,
+                         description='The unique id of the user'),
+    'product_id': fields.Integer(required=True,
+                          description='he unique id of the product'),
+    'quantity': fields.Integer(required=True,
+                              description='The quantity or number of that particular product we want to add to cart'),
+    'price': fields.Float(required=True,
+                                description='Cost of one item of the product')
+}, mask='user_id, product_id, quantity, price')
+
+
+######################################################################
 # Special Error Handlers
 ######################################################################
 
