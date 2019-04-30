@@ -15,23 +15,18 @@
             <h1 style="color:#007bff">Shopcarts REST API Service</h1>
         </div>
 
-        <!-- Flash Message -->
-        <div class="table-responsive">
-          <table class="table">
-            <tr><td style="color:#007bff">Status:</td><td><span style="color:#006400" id="flash_message"></span></td></tr>
-          </table>
-        </div>
+
 
 	<h3 style="color:#007bff">Add, Retrieve, Update, and Delete an item in Shopcart:</h3>
           <div style="background-color:#a9a9a9" class="well">
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="user_id">User ID:</label>
+                <label class="control-label col-sm-2" for="user_id" style="font-size: 130%">User ID:</label>
                 <div class="col-sm-6">
                   <input type="text" class="form-control" id="user_id" placeholder="Enter ID of User or Leave blank to fetch all shopcarts">
                 </div>
                 <div class="col-sm-4">
-                  <button type="submit" class="btn btn-primary" id="retrieve-all-btn">Retrieve All</button>
+                  <button type="submit" class="btn btn-info" id="retrieve-all-btn">Retrieve All</button>
                   <button type="submit" class="btn btn-danger" id="delete-all-btn">Delete All</button>
                   <button type="submit" class="btn btn-primary" id="total-btn">Total</button>
                 </div>
@@ -40,12 +35,12 @@
 
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="product_id">Product ID:</label>
+                <label class="control-label col-sm-2" for="product_id" style="font-size: 130%">Product ID:</label>
                 <div class="col-sm-6">
                   <input type="text" class="form-control" id="product_id" placeholder="Enter ID of Product">
                 </div>
                 <div class="col-sm-4">
-                  <button type="submit" class="btn btn-primary" id="retrieve-btn">Retrieve        </button>
+                  <button type="submit" class="btn btn-info" id="retrieve-btn">Retrieve        </button>
                   <button type="submit" class="btn btn-danger" id="delete-btn">Delete        </button>
                 </div>
               </div>
@@ -53,13 +48,13 @@
 
             <div class="form-horizontal">
               <div class="form-group">
-                <label class="control-label col-sm-2" for="quantity">Quantity:</label>
+                <label class="control-label col-sm-2" for="quantity" style="font-size: 130%">Quantity:</label>
                 <div class="col-sm-10">
                   <input type="text" class="form-control" id="quantity" placeholder="Enter quantity for Product">
                 </div>
               </div>
               <div class="form-group">
-                <label class="control-label col-sm-2" for="price">Price:</label>
+                <label class="control-label col-sm-2" for="price" style="font-size: 130%">Price:</label>
                 <div class="col-sm-10">
                   <input type="text" class="form-control" id="price" placeholder="Enter price of Product">
                 </div>
@@ -72,6 +67,14 @@
                 </div>
               </div>
           </div> <!-- form div -->
+        </div>
+
+
+        <!-- Flash Message -->
+        <div class="table-responsive">
+          <table class="table">
+            <tr><td style="color:#007bff" class="col-sm-1"><u>Status</u>:</td><td><span style="color:#006400" id="flash_message"></span></td></tr>
+          </table>
         </div>
 
         <!-- Search Results -->
