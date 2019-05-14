@@ -20,9 +20,9 @@ httpie==1.0.2
 
 # BDD
 behave==1.2.6
-selenium==3.141.0
+selenium==3.3.1
 compare==0.2b0
-requests==2.21.0
+requests==2.13.0
 urllib3==1.24.1
 
 # Code coverage
