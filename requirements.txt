@@ -23,7 +23,7 @@ behave==1.2.6
 selenium==3.141.0
 compare==0.2b0
 requests==2.21.0
-urllib3==1.24.1
+urllib3==1.25
 
 # Code coverage
 coverage==4.5.3
